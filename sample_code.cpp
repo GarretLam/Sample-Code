@@ -1,26 +1,27 @@
 // Sample C++ code
 //
-// This code is extracted from one of the solvers based on the CE/SE method in my previous team.
-// This solver adopts time marching in the solutions, which are evaluated by the flux conservation in an element, i.e. the basic unit in the method.
+// This code is extracted from the solvers based on the CE/SE method in my previous team.
 // In this sample code, the part with compressible Navier-Stokes Equations solver is demonstrated.
-// As demonstration, the codes for other functionalities, information handling and calculation processes are all omitted for clarity.
+// This solver adopts time marching in the solutions, which are evaluated by the flux conservation in an element, i.e. the basic unit in the method.
+// As demonstration, only a rough framework is shown.
+// The codes for other functionalities, information handling and calculation processes are all omitted for clarity.
 // The program was designed and mainly developed by myself including the structure.
-// The major consideration of this program apart from the solving the targeted equations is speed of calculation.
+// The major consideration of this program apart from solving the targeted equations is speed of calculation.
 // Later my supervisor chose it as the major research tool and it was further developed in my previous team.
+//
+// I adopted object-oriented programming (OOP) using the following major features.
+// 1. Object features e.g. inheritance - treated an element in the CE/SE method as an object (class Element), which is the basis of the calculation.
+//                                     - class Element is built from other smaller classes, which are in turns built on even smaller classes to ensure testability.
+//                                     - Demonstrated definitions from Line 181 - 278
+// 2. Template - class & functions simplifying the code for different solvers, e.g. class Element.
+// 3. Function pointers - simplifying the code for different solving processes, e.g. updateU in Line 154.
+// 4. Data structures - grouping calculation parameters, temp variables etc.
 //
 // The program can be run in HPC cluster via hybrid parallelisation.
 // 1. Between the computing node: MPI (started from MPI_init)
 // 2. Inside the computing node: OpenMP (through directive #pragma omp)
 // I chose such approach due to the simplicity of OpenMP and overall effectiveness of such combination.
 // It can even achieve about 90% of ideal speed-up on the 150-core cluster in my previous team.
-//
-// I adopted object-oriented programming (OOP) using the following major features.
-// 1. Object features e.g. inheritance - treated an element in the CE/SE method as an object (class Element), which is the basis of the calculation.
-//                                     - class Element is built from other smaller classes, which are in turns built on even smaller classes to ensure testability.
-//                                     - Demonstrated definitions from Line 180 - 277
-// 2. Template - class & functions simplifying the code for different solvers, e.g. class Element.
-// 3. Function pointers - simplifying the code for different solving processes, e.g. updateU in Line 153.
-// 4. Data structures - grouping calculation parameters, temp variables etc.
 
 int main (int argc, char* argv[]) // Main program of in-house numerical model
 {
@@ -53,7 +54,7 @@ void cese3d_Domain_Decomp(SimulationInformation &simulationSettings, int choice,
       break;
     case 'H': // Hexahedron shaped elements: Demonstration
       switch(simulationSettings.Pm.typePhysics) { // Choosing the type of physical model
-        case 'N': // Fluid dynamic solver (solving compressible Navier-Stikes equations)
+        case 'N': // Fluid dynamics solver (solving compressible Navier-Stikes equations)
         {  // Declare all the required variable for Hexahedron shaped elements
           vector<Element<CE_Hex, SE_Hex> > elm; MatrixP Sol_Vec(5,0.0); DummyVar3D<MatrixP, 5, 6> a1; DummyDxy3D<MatrixP, 8, 6> a2; DummyU3DM<MatrixP> a3;
           Hexahedron hexa; E_Info<6,8> info_temp;
@@ -70,7 +71,7 @@ void cese3d_Domain_Decomp(SimulationInformation &simulationSettings, int choice,
 template <class T1, class T2, class Matrix, class Shape, class DummyContainer, class DummyContainer2, class DummyContainer3, class EInfo>
 void Cal_Cese3d_Domain_Decomp(vector<Element<T1, T2> > &elm, SimulationInformation &simulationSettings, int choice, int fchoice, bool &solution_coupling, ExcitationInformation &ExcitationParameters, int nThreads, Matrix Mat, DummyContainer a1, DummyContainer2 a2, DummyContainer3 a3, int NE, int Nnode, Shape element_shape, EInfo info_temp)
 {
-  // 1. Variables declaration - Demonstration of function pointer adopted in this code (Definitions starts from Line 278)
+  // 1. Variables declaration - Demonstration of function pointer adopted in this code (Definitions starts from Line 282)
   InformationForUpdatingSolutionVector<T1, T2, DummyContainer, Matrix> Arguments_U;
   assign_updateU_function(Arguments_U.updateU);       // Assign the updating solution based on the shape of elements
   // Other declarations omitted here
@@ -221,7 +222,7 @@ class CE_Hex: public ceGeometry_Hex
     int domain_type;
 };
 
-class ceGeometry_Hex
+class ceGeometry_Hex // Geometry of Hexahedral CE
 {
   public:
     ceGeometry_Hex();
@@ -239,25 +240,23 @@ class ceGeometry_Hex
     // Omitted some variables
 };
 
-class TriDipyramid
+class DiPyramid // Geometry of DiPyramid used in  Hexahedral CE
 {
   public:
-    TriDipyramid();
-    TriDipyramid(Vec3d&, Vec3d&, Vec3d&, Vec3d&, Vec3d&);
-    void setTDPyramid(Vec3d, Vec3d, Vec3d, Vec3d, Vec3d);
-    const double &getVolume() const;            // Get the volume
-    const Vec3d &getCentroid() const;            // Get the centroid
+    DiPyramid();
+    DiPyramid(Vec3d&, Vec3d&, Vec3d&, Vec3d&, Vec3d&, Vec3d&);
+    void setDiPyramid(Vec3d, Vec3d, Vec3d, Vec3d, Vec3d, Vec3d);
+    const double &getVolume() const;      // Get the volume
+    const Vec3d &getCentroid() const;      // Get the centroid
     
   private:
     Vec3d Centroid;
-    double tdpVol;
+    double dpVol;
 };
 
 template < int m, int n>
-class E_Info
+class E_Info // Element Information Object
 {
-  friend class CE_Tet;
-  
   public:
     E_Info();                       // asize = no. of adj. elements, nsize = no. of nodes
     void setElementID(int);                                        // Set the ID number of the element
